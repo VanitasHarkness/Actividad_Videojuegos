@@ -1,0 +1,553 @@
+---
+title: "Actividad de Videojuegos"
+format: html
+editor: visual
+---
+
+
+
+## Cargar datos
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(forcats)
+
+
+
+videojuegos <- read.csv("vgsales.csv")
+head(videojuegos)
+
+colnames(videojuegos)
+nrow(videojuegos)
+```
+
+## Limpieza de datos
+
+```{r}
+colSums(is.na(videojuegos))
+```
+
+## Exploración de columnas específica
+
+```{r}
+
+
+videojuegos_limpio <- videojuegos %>% 
+  mutate(
+    Year = readr::parse_number(as.character(Year))
+  ) %>% 
+  
+  filter(!is.na(Year)) %>% 
+  filter(!is.na(Publisher))
+
+dim(videojuegos)
+dim(videojuegos_limpio)
+
+class(videojuegos_limpio$Year)
+```
+
+## Tema Visual
+
+```{r}
+theme_videojuegos <- function() {
+  theme_minimal(base_size = 13) +
+    theme(
+      plot.title = element_text(face = "bold", size = 16),
+      plot.subtitle = element_text(size = 11),
+      plot.caption = element_text(size = 9, color = "#659287"),
+      axis.title = element_text(face = "bold"),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom"
+    )
+}
+```
+
+## Ejercicio 1
+
+```{r}
+top_juegos <- videojuegos_limpio %>%
+  select(Name, Platform, Year, Genre, Publisher, Global_Sales) %>%
+  arrange(desc(Global_Sales)) %>%
+  slice_head(n = 10)
+
+top_juegos
+```
+
+Intento de gráfica
+
+```{r}
+Grafica1 <- top_juegos %>%
+  mutate(Name = reorder(Name, Global_Sales)) %>%
+  ggplot(aes(x = Name, y = Global_Sales, fill = Global_Sales)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(
+    low = "#80BCBD",
+    high = "#FF6868"
+  ) +
+  labs(
+    title = "Top 10 videojuegos con mayores ventas globales",
+    subtitle = "Ventas globales en millones de copias",
+    x = "Videojuego",
+    y = "Ventas globales (millones)"
+  ) +
+  theme_videojuegos() +
+  theme(legend.position = "none")
+
+Grafica1
+
+ggsave(
+  filename = "figures/Grafica1.png",
+  plot = Grafica1,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
+
+## Prepara los datos
+
+```{r}
+ventas_por_genero <- videojuegos_limpio %>%
+  group_by(Genre) %>%
+  summarise(
+    ventas_globales = sum(Global_Sales, na.rm = TRUE),
+    numero_juegos = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(ventas_globales))
+
+ventas_por_genero
+```
+
+```{r}
+Grafica2 <- ventas_por_genero %>%
+  mutate(Genre = reorder(Genre, ventas_globales)) %>%
+  ggplot(aes(
+    x = Genre,
+    y = ventas_globales,
+    fill = ventas_globales
+  )) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(
+    low = "#80BCBD",
+    high = "#007979"
+  ) +
+  labs(
+    title = "Ventas globales acumuladas por género",
+    subtitle = "Suma total de ventas globales por género",
+    x = "Género",
+    y = "Ventas globales acumuladas (millones)"
+  ) +
+  theme_videojuegos() +
+  theme(legend.position = "none")
+
+Grafica2
+ggsave(
+  filename = "figures/Grafica2.png",
+  plot = Grafica2,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+```
+
+## Número de juegos o ventas globales
+
+```{r}
+genero_juegos_ventas <- videojuegos_limpio %>%
+  group_by(Genre) %>%
+  summarise(
+    numero_juegos = n(),
+    ventas_globales = sum(Global_Sales, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+genero_juegos_ventas
+```
+
+```{r}
+Grafica3 <- ggplot(
+  genero_juegos_ventas,
+  aes(
+    x = numero_juegos,
+    y = ventas_globales,
+    label = Genre
+  )
+) +
+  geom_point(
+    color = "#6FBEB2",
+    size = 4
+  ) +
+  geom_text(
+    vjust = -0.7,
+    size = 3.5
+  ) +
+  labs(
+    title = "Número de juegos y ventas globales por género",
+    subtitle = "Cada punto representa un género",
+    x = "Número de juegos",
+    y = "Ventas globales acumuladas (millones)"
+  ) +
+  theme_videojuegos()
+Grafica3
+
+ggsave(
+  filename = "figures/Grafica3.png",
+  plot = Grafica3,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
+
+## Venta Típica por género
+
+```{r}
+ventas_tipicas_genero <- videojuegos_limpio %>%
+  group_by(Genre) %>%
+  summarise(
+    venta_promedio = mean(Global_Sales, na.rm = TRUE),
+    venta_mediana = median(Global_Sales, na.rm = TRUE),
+    numero_juegos = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(venta_mediana))
+
+ventas_tipicas_genero
+```
+
+```{r}
+Grafica4 <- ventas_tipicas_genero %>%
+  mutate(Genre = reorder(Genre, venta_mediana)) %>%
+  ggplot(aes(
+    x = Genre,
+    y = venta_mediana,
+    fill = venta_mediana
+  )) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(
+    low = "#80BCBD",
+    high = "#FF6868"
+  ) +
+  labs(
+    title = "Venta mediana por género",
+    subtitle = "La gráfica muestra la mediana de ventas globales por videojuego",
+    x = "Género",
+    y = "Venta mediana (millones de copias)"
+  ) +
+  theme_videojuegos() +
+  theme(legend.position = "none")
+
+Grafica4
+
+ggsave(
+  filename = "figures/Grafica4.png",
+  plot = Grafica4,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
+
+## Ventas por región
+
+```{r}
+ventas_por_region <- videojuegos_limpio %>%
+  summarise(
+    Norteamerica = sum(NA_Sales, na.rm = TRUE),
+    Europa = sum(EU_Sales, na.rm = TRUE),
+    Japon = sum(JP_Sales, na.rm = TRUE),
+    Otras_regiones = sum(Other_Sales, na.rm = TRUE)
+  ) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "region",
+    values_to = "ventas"
+  ) %>%
+  arrange(desc(ventas))
+
+ventas_por_region
+```
+
+```{r}
+Grafica5 <- ventas_por_region %>%
+  mutate(region = reorder(region, ventas)) %>%
+  ggplot(aes(
+    x = region,
+    y = ventas,
+    fill = ventas
+  )) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(
+   low = "#80BCBD",
+    high = "#007979"
+  ) +
+  labs(
+    title = "Ventas globales acumuladas por región",
+    subtitle = "Suma total de ventas registradas en cada región",
+    x = "Región",
+    y = "Ventas acumuladas (millones de copias)"
+  ) +
+  theme_videojuegos() +
+  theme(legend.position = "none")
+
+Grafica5
+
+ggsave(
+  filename = "figures/Grafica5.png",
+  plot = Grafica5,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
+
+## Ventas Globales por década
+
+```{r}
+videojuegos_limpio <- videojuegos_limpio %>%
+  mutate(decada = floor(Year / 10) * 10)
+```
+
+```{r}
+ventas_por_decada <- videojuegos_limpio %>%
+  group_by(decada) %>%
+  summarise(
+    ventas_globales = sum(Global_Sales, na.rm = TRUE),
+    numero_juegos = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(decada)
+
+ventas_por_decada
+```
+
+```{r}
+Grafica6 <- ggplot(
+  ventas_por_decada,
+  aes(
+    x = decada,
+    y = ventas_globales
+  )
+) +
+  geom_line(
+    color = "#80BCBD",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    color = "#FF6868",
+    size = 3
+  ) +
+  labs(
+    title = "Ventas globales acumuladas por década",
+    subtitle = "Suma total de ventas registradas en cada década",
+    x = "Década",
+    y = "Ventas acumuladas (millones de copias)"
+  ) +
+  theme_videojuegos()
+
+Grafica6
+
+ggsave(
+  filename = "figures/Grafica6.png",
+  plot = Grafica6,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
+
+## Plataformas con mayores ventas globales
+
+```{r}
+top_plataformas <- videojuegos_limpio %>%
+  group_by(Platform) %>%
+  summarise(
+    ventas_globales = sum(Global_Sales, na.rm = TRUE),
+    numero_juegos = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(ventas_globales)) %>%
+  slice_head(n = 10)
+
+top_plataformas
+```
+
+```{r}
+Grafica7 <- top_plataformas %>%
+  mutate(Platform = reorder(Platform, ventas_globales)) %>%
+  ggplot(aes(
+    x = Platform,
+    y = ventas_globales,
+    fill = ventas_globales
+  )) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(
+     low = "#80BCBD",
+    high = "#FF6868"
+  ) +
+  labs(
+    title = "Top 10 plataformas por ventas globales acumuladas",
+    subtitle = "Suma total de ventas globales por plataforma",
+    x = "Plataforma",
+    y = "Ventas globales acumuladas (millones de copias)"
+  ) +
+  theme_videojuegos() +
+  theme(legend.position = "none")
+
+Grafica7
+
+ggsave(
+  filename = "figures/Grafica7.png",
+  plot = Grafica7,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
+
+## Ventas en Norteamérica y Europa
+
+```{r}
+Grafica8 <- top_plataformas %>%
+  mutate(Platform = reorder(Platform, ventas_globales)) %>%
+  ggplot(aes(
+    x = Platform,
+    y = ventas_globales,
+    fill = ventas_globales
+  )) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(
+     low = "#80BCBD",
+    high = "#007979"
+  ) +
+  labs(
+    title = "Top 10 plataformas por ventas globales acumuladas",
+    subtitle = "Suma total de ventas globales registradas por plataforma",
+    x = "Plataforma",
+    y = "Ventas globales acumuladas (millones de copias)"
+  ) +
+  theme_videojuegos() +
+  theme(legend.position = "none")
+
+Grafica8
+
+ggsave(
+  filename = "figures/Grafica8.png",
+  plot = Grafica8,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
+
+## Género y Región
+
+```{r}
+ventas_region_genero <- videojuegos_limpio %>%
+  group_by(Genre) %>%
+  summarise(
+    Norteamerica = sum(NA_Sales, na.rm = TRUE),
+    Europa = sum(EU_Sales, na.rm = TRUE),
+    Japon = sum(JP_Sales, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = c(Norteamerica, Europa, Japon),
+    names_to = "region",
+    values_to = "ventas"
+  )
+
+ventas_region_genero
+```
+
+```{r}
+Grafica9 <- ggplot(
+  ventas_region_genero,
+  aes(
+    x = reorder(Genre, ventas),
+    y = ventas,
+    fill = region
+  )
+) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  facet_wrap(~region) +
+  scale_fill_manual(
+    values = c(
+      "Norteamerica" = "#007979",
+      "Europa" = "#9BCF53",
+      "Japon" = "#FF6868"
+    )
+  ) +
+  labs(
+    title = "Ventas por género en distintas regiones",
+    subtitle = "Comparación entre Norteamérica, Europa y Japón",
+    x = "Género",
+    y = "Ventas acumuladas (millones de copias)"
+  ) +
+  theme_videojuegos()
+
+Grafica9
+
+ggsave(
+  filename = "figures/Grafica9.png",
+  plot = Grafica9,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
+
+## Juegos más vendidos en Norteamérica (pregunta propia)
+
+```{r}
+top_juegos_na <- videojuegos_limpio %>% 
+  select(Name, Platform, Year, Genre, Publisher, NA_Sales) %>% 
+  arrange(desc(NA_Sales)) %>% 
+  slice_head(n = 10)
+
+top_juegos_na
+```
+
+```{r}
+Grafica10 <- top_juegos_na %>% 
+  mutate(Name = reorder(Name, NA_Sales)) %>% 
+  ggplot(aes(x = Name, y = NA_Sales, fill = NA_Sales)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(
+    low = "#80BCBD", 
+    high = "#FF6868"
+  )+
+  labs(
+    title = "Top 10 videojuegos con mayores ventas en Norteamérica",
+    subtitle = "Ventas registradas en millones de copias",
+    x = "Videojuego",
+    y = "Ventas en Norteamérica (millones)"
+  ) +
+  theme_videojuegos() + # Aplicar el tema definido en el proyecto
+  theme(legend.position = "none")
+
+Grafica10
+
+ggsave(
+  filename = "figures/Grafica10.png",
+  plot = Grafica10,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+```
